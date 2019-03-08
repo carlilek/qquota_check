@@ -1,0 +1,27 @@
+{
+    "email settings":{
+        "server":"smtp.example.com",
+        "sender_address":"clustername@example.com"
+    },
+    "qcluster":{
+        "name":"clustername",
+        "url":"cluster.fq.dn",
+        "user":"admin",
+        "password":""
+    },
+    "output_log":{
+        "logfile":"./lab_usage.log"
+    },
+    "quotas":{
+        "examplequota1":{
+            "mail_to":[ "user1@example.com","storageadmins@example.com" ],
+            "warn_percent":"95"
+        },
+        "examplequota2":{
+            "mail_to":[ "user2@example.com","storageadmins@example.com" ],
+            "warn_percent":"98"
+        }
+
+    }
+            
+}
