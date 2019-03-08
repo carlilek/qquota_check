@@ -141,7 +141,7 @@ def get_all_quotas(rc):
         #quotalist = list(all_quotas_raw)[0]['quotas']
         for l in list(all_quotas_raw):
             quotalist.extend(l['quotas'])
-        print(quotalist)
+        #print(quotalist)
 
     except Exception, excpt:
         print "An error occurred contacting the storage for the quota list: {}".format(excpt)
