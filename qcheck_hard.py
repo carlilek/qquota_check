@@ -75,42 +75,31 @@ def build_mail(nfspath, quotaname, current_usage, quota, configdict, quota_recip
         sane_current_usage = float(current_usage) / float(TERABYTE)
         sane_quota = quota / TERABYTE
         body = ""
-        if 'jacs' in quotaname and emailtype == 'warn':
-            labname = quotaname.replace("jacs-","").capitalize()
-            subject = 'Workstation Secondary Data Storage Warning'
-            body += 'Dear Janelia Workstation User,<br><br>'
-            body += 'This is a courtesy warning to let you know that your lab ({}) has reached greater than {}% ({:.2f} TB/{} TB) '\
-                    'of its currently allocated storage limit for secondary data. '\
-                    'Please see the Lab Quotas page (http://dataviz/lab-quotas/) '\
-                    'for more information on your current limits. At this time we would like to provide you with some options '\
-                    'to make sure that we can continue to process your data in the Janelia '\
-                    'workstation. <br><br>'.format(labname, quota_recip['warn_percent'], sane_current_usage, sane_quota) 
-            body += '1. Remove some of your older data that is no longer needed. This can be done in the Workstation and an '\
-                    'example of how can be found on the wiki (http://wiki/wiki/display/JW/Purge+and+Block)<br><br>'
-            body += '2. Please submit a helpdesk ticket asking them to notify Scientific Computing Services that you would '\
-                    'like to have your storage quota increased. Storage is billed to your lab in 5TB increments at a cost of $12/TB/month.<br><br>'
+        if 'special' in quotaname and emailtype == 'warn':
+            labname = quotaname.replace("special-","").capitalize()
+            subject = 'Special Data Storage Warning'
+            body += 'Dear User,<br><br>'
+            body += 'This is a courtesy warning that your lab ({}) has reached greater than {}% ({:.2f} TB/{} TB) '\
+                    'of its currently allocated storage limit for special data. '\
             body += 'Failure to remedy this situation before 98% of your storage quota is reached will prevent all future processing of '\
-                    'LSMs in the Janelia Workstation. We hope this warning will provide you with enough time to prevent any down time. '\
-                    'If you have any questions or concerns, please contact us at: jacs-pipeline@janelia.hhmi.org<br><br>'
-            body += 'Regards,<br><br>Janelia Workstation Team<br>'
+                    'data. We hope this warning will provide you with enough time to prevent any down time. '\
+                    'If you have any questions or concerns, please contact us at: blah@example.com<br><br>'
+            body += 'Regards,<br><br>Storageadmins<br>'
             print "built warn"
-        elif 'jacs' in quotaname and emailtype == 'full':
-            labname = quotaname.replace("jacs-","").capitalize()
-            subject = '!!!Workstation Secondary Data Storage Alert!!!'
-            body += 'Dear Janelia Workstation User,<br><br>'
-            body += 'Your lab ({}) has reached its currently allocated storage limit of {} TB for secondary data. '\
-                    'Please see the Lab Quotas page (http://dataviz/lab-quotas/) '\
-                    'for more information on your current limits. In order to allow us to continue to '\
-                    'process your data in the Janelia workstation, we need you to perform one of the '\
+        elif 'special' in quotaname and emailtype == 'full':
+            labname = quotaname.replace("special-","").capitalize()
+            subject = '!!!Special Data Storage Alert!!!'
+            body += 'Dear User,<br><br>'
+            body += 'Your lab ({}) has reached its currently allocated storage limit of {} TB for special data. '\
+                    'In order to continue to process your data, we need you to perform one of the '\
                     'following remedial actions. <br><br>'.format(labname, sane_quota) 
-            body += '1. Remove some of your older data that is no longer needed. This can be done in the Workstation and an '\
-                    'example of how can be found on the wiki (http://wiki/wiki/display/JW/Purge+and+Block)<br><br>'
-            body += '2. Please submit a helpdesk ticket asking them to notify Scientific Computing Services that you would '\
-                    'like to have your storage quota increased. Storage is billed to your lab in 5TB increments at a cost of $12/TB/month.<br><br>'
-            body += 'Failure to remedy this situation is preventing all future processing of LSMs in the Janelia Workstation for your lab. '\
+            body += '1. Remove some of your older data that is no longer needed.<br><br>'
+            body += '2. Please submit a helpdesk ticket '\
+                    'to have your storage quota increased.<br><br>'
+            body += 'Failure to remedy this situation is preventing all future processing for your lab. '\
                     'If you have any questions or concerns, '\
-                    'please contact us at: jacs-pipeline@janelia.hhmi.org<br><br>'
-            body += 'Regards,<br><br>Janelia Workstation Team<br>'
+                    'please contact us at: blah@example.com<br><br>'
+            body += 'Regards,<br><br>Storageadmins<br>'
         elif emailtype == 'warn':
             subject = quotaname + " Quota Near Limit"
             body += "The usage on {} has reached {}% of the quota.<br>".format(nfspath, quota_recip['warn_percent'])
@@ -157,29 +146,26 @@ def process_quotas(rc,configdict,quota_recip,quotalist):
         total_files = int(fs_stats['total_files'])
         usage = int(quota['capacity_usage'])
         hquota = int(quota['limit'])
-        if 'jacs' in toppath:
-            lab = os.path.relpath(toppath,'/groups/jacs/jacsData/filestore/groups')
-            jacs = 'jacs'
-            nfspath = os.path.join('/nrs/jacs/jacsData/filestore/groups', lab)
-            quotaname = 'jacs-' + lab
-        elif 'data' in toppath:
-            lab = 'lsms'
-            quotaname = 'groups/scicomp/lsms'
+        if 'special' in toppath:
+            lab = os.path.relpath(toppath,'/special/groups')
+            special = 'special'
+            nfspath = os.path.join('/sgroups', lab)
+            quotaname = 'special-' + lab
         elif 'nobackup' in toppath:
             lab = os.path.relpath(toppath,'/nobackup')
-            nfspath = os.path.join('/nrs', lab)
-            jacs = ''
+            nfspath = os.path.join('/nobackup', lab)
+            special = ''
             quotaname = lab
         elif 'nearline' in toppath:
             lab = os.path.relpath(toppath,'/nearline')
             nfspath = os.path.join('/nearline', lab)
-            jacs = ''
+            special = ''
             quotaname = lab
 
-        lablist.append([lab,usage,hquota,total_files,jacs])
+        lablist.append([lab,usage,hquota,total_files,special])
         percentage = 100 * usage / hquota
         try:
-            if percentage >= 98 and jacs == 'jacs':
+            if percentage >= 98 and special == 'special':
                 checkfile = os.path.join('/dev/shm', quotaname + 'full')
                 emailtype = 'full'
             elif percentage >= quota_recip[quotaname]['warn_percent'] and percentage < 100:
