@@ -3,6 +3,7 @@ import os
 import sys
 import json
 import smtplib
+import argparse
 from email.mime.text import MIMEText
 from qumulo.rest_client import RestClient
 
@@ -14,12 +15,9 @@ GIGABYTE = 1024 * MEGABYTE
 TERABYTE = 1024 * GIGABYTE
 
 
-### Edit the configpath for the location of your qconfig.json ### 
-configpath = "/root/bin/nrs_quota/qconfig.json"
-#################################################################
 
 # Import qconfig.json for login information and other settings
-def getconfig():
+def getconfig(configpath):
     configdict = {}
     try:
         with open (configpath, 'r') as j:
@@ -90,7 +88,7 @@ def build_mail(nfspath, quotaname, current_usage, quota, configdict, quota_recip
             body += '1. Remove some of your older data that is no longer needed. This can be done in the Workstation and an '\
                     'example of how can be found on the wiki (http://wiki/wiki/display/JW/Purge+and+Block)<br><br>'
             body += '2. Please submit a helpdesk ticket asking them to notify Scientific Computing Services that you would '\
-                    'like to have your storage quota increased. Storage is billed to your lab in 5TB increments at a cost of $15/TB/month.<br><br>'
+                    'like to have your storage quota increased. Storage is billed to your lab in 5TB increments at a cost of $12/TB/month.<br><br>'
             body += 'Failure to remedy this situation before 98% of your storage quota is reached will prevent all future processing of '\
                     'LSMs in the Janelia Workstation. We hope this warning will provide you with enough time to prevent any down time. '\
                     'If you have any questions or concerns, please contact us at: jacs-pipeline@janelia.hhmi.org<br><br>'
@@ -108,7 +106,7 @@ def build_mail(nfspath, quotaname, current_usage, quota, configdict, quota_recip
             body += '1. Remove some of your older data that is no longer needed. This can be done in the Workstation and an '\
                     'example of how can be found on the wiki (http://wiki/wiki/display/JW/Purge+and+Block)<br><br>'
             body += '2. Please submit a helpdesk ticket asking them to notify Scientific Computing Services that you would '\
-                    'like to have your storage quota increased. Storage is billed to your lab in 5TB increments at a cost of $15/TB/month.<br><br>'
+                    'like to have your storage quota increased. Storage is billed to your lab in 5TB increments at a cost of $12/TB/month.<br><br>'
             body += 'Failure to remedy this situation is preventing all future processing of LSMs in the Janelia Workstation for your lab. '\
                     'If you have any questions or concerns, '\
                     'please contact us at: jacs-pipeline@janelia.hhmi.org<br><br>'
@@ -137,8 +135,13 @@ def free_space(rc):
 
 def get_all_quotas(rc):
     try:
-        all_quotas_raw = rc.quota.get_all_quotas_with_status(10000)
-        quotalist = list(all_quotas_raw)[0]['quotas']
+        quotalist = []
+        all_quotas_raw = rc.quota.get_all_quotas_with_status()
+        #print list(all_quotas_raw)
+        #quotalist = list(all_quotas_raw)[0]['quotas']
+        for l in list(all_quotas_raw):
+            quotalist.extend(l['quotas'])
+        print(quotalist)
 
     except Exception, excpt:
         print "An error occurred contacting the storage for the quota list: {}".format(excpt)
@@ -154,16 +157,24 @@ def process_quotas(rc,configdict,quota_recip,quotalist):
         total_files = int(fs_stats['total_files'])
         usage = int(quota['capacity_usage'])
         hquota = int(quota['limit'])
-        if 'nobackup' in toppath:
-            lab = os.path.relpath(toppath,'/nobackup')
-            nfspath = os.path.join('/nrs', lab)
-            jacs = ''
-            quotaname = lab
-        elif 'jacs' in toppath:
+        if 'jacs' in toppath:
             lab = os.path.relpath(toppath,'/groups/jacs/jacsData/filestore/groups')
             jacs = 'jacs'
             nfspath = os.path.join('/nrs/jacs/jacsData/filestore/groups', lab)
             quotaname = 'jacs-' + lab
+        elif 'data' in toppath:
+            lab = 'lsms'
+            quotaname = 'groups/scicomp/lsms'
+        elif 'nobackup' in toppath:
+            lab = os.path.relpath(toppath,'/nobackup')
+            nfspath = os.path.join('/nrs', lab)
+            jacs = ''
+            quotaname = lab
+        elif 'nearline' in toppath:
+            lab = os.path.relpath(toppath,'/nearline')
+            nfspath = os.path.join('/nearline', lab)
+            jacs = ''
+            quotaname = lab
 
         lablist.append([lab,usage,hquota,total_files,jacs])
         percentage = 100 * usage / hquota
@@ -190,7 +201,16 @@ def process_quotas(rc,configdict,quota_recip,quotalist):
     return lablist
 
 def main(argv):
-    configdict, reciplist = getconfig()
+    ### Edit the configpath for the location of your qconfig.json ### 
+    configpath = "/root/bin/nrs_quota/qconfig.json"
+    #################################################################
+
+    parser = argparse.ArgumentParser('Check quota status, create log file, and email if over quota')
+    parser.add_argument('-c', '--config', type=str, default=configpath, required=False)
+    args = parser.parse_args()
+    configpath = args.config
+
+    configdict, reciplist = getconfig(configpath)
     rc = login(configdict)
     freesize, totalsize = free_space(rc)
     quotalist = get_all_quotas(rc)
